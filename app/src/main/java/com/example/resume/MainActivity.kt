@@ -1,3 +1,4 @@
+package com.example.resume
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,7 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val viewModel = ViewModelProvider(this)[ResumeViewModel::class.java]
+        val viewModel = ViewModelProvider(this).get(ResumeViewModel::class.java)
         setContent {
             ResumeApp(viewModel)
         }
@@ -15,5 +16,3 @@ class MainActivity : ComponentActivity() {
         viewModel.fetchResume()
     }
 }
-package com.example.resume
-
