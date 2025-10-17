@@ -1,12 +1,47 @@
-Resume Android project
+# Resume Android App
 
-Required tool versions
-- Gradle (wrapper): 8.10.2 (set in gradle/wrapper/gradle-wrapper.properties)
-- Android Gradle Plugin (AGP): 8.8.0 (declared in gradle/libs.versions.toml)
-- Kotlin plugin: 1.9.24 (declared in gradle/libs.versions.toml)
+This repository contains an Android app (Kotlin, Jetpack Compose) that displays a resume fetched from a backend API. It follows MVVM architecture and uses Retrofit + Coroutines for networking.
 
-Build notes
-- Use the project wrapper to build: `./gradlew build`
-- If you upgrade AGP or Kotlin, also update the Gradle wrapper to the minimum supported Gradle version required by the AGP change.
+## What I added
+- Jetpack Compose UI that shows name, title, summary, and a skills list.
+- MVVM: `ResumeViewModel` exposes UI state.
+- Networking: `ResumeRepository` uses Retrofit to call `GET /resume`.
 
-If you want me to try safe version bumps (Kotlin/AGP) and run compatibility checks, tell me which upgrade direction you'd like (minor/patch), and I'll run a build + tests to validate.
+## How to run
+1. Set the backend URL in `app/src/main/java/com/example/resume/ResumeRepository.kt` (replace `BASE_URL`).
+   - For local development with emulator, use `http://10.0.2.2:8000/`.
+2. Build the app:
+
+```bash
+./gradlew :app:assembleDebug
+```
+
+3. Install on a connected device or emulator:
+
+```bash
+./gradlew :app:installDebug
+```
+
+4. Open the app; press Load if it does not auto-load.
+
+## API contract
+GET `${BASE_URL}resume` returns JSON shaped like:
+
+```json
+{
+  "name": "Santosh Example",
+  "title": "Android Developer",
+  "summary": "A concise summary about me.",
+  "skills": [
+    { "name": "Kotlin", "level": "Expert" },
+    { "name": "Jetpack Compose", "level": "Advanced" }
+  ]
+}
+```
+
+## Notes
+- If you want me to create the GitHub repo for you from this environment I can attempt to use the GitHub CLI (if installed and authenticated). Otherwise follow the manual steps printed below after the script runs.
+
+## License
+Add a license if you want to make this public (e.g., MIT).
+
