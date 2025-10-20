@@ -1,5 +1,6 @@
 package com.example.resume
 
+import android.util.Log
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.material.Text
@@ -10,10 +11,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Business
+import java.net.URLEncoder
+import java.util.Locale
+
+// libphonenumber imports
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
+import com.google.i18n.phonenumbers.NumberParseException
 
 @Composable
 fun ResumeApp(viewModel: ResumeViewModel) {
@@ -55,18 +72,78 @@ fun ResumeScreen(
             resume != null -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item {
-                        Text(resume.name, style = MaterialTheme.typography.h5)
-                        Text(resume.title, style = MaterialTheme.typography.subtitle1)
+                        // Header: Name / Title
+                        val displayName = resume.personalInfo?.name ?: resume.name
+                        Text(displayName, style = MaterialTheme.typography.h5, fontWeight = FontWeight.Bold)
+                        if (resume.title.isNotBlank()) {
+                            Text(resume.title, style = MaterialTheme.typography.subtitle1)
+                        }
                         Spacer(Modifier.height(8.dp))
-                        Text(resume.summary)
+
+                        // Contact + summary
+                        resume.personalInfo?.let { p ->
+                            ContactRow(p)
+                            Spacer(Modifier.height(8.dp))
+                            p.summary?.let { s ->
+                                if (s.isNotBlank()) Text(s)
+                            }
+                        } ?: run {
+                            if (resume.summary.isNotBlank()) Text(resume.summary)
+                        }
+
                         Spacer(Modifier.height(12.dp))
+
+                        // Skills
                         Text("Skills", style = MaterialTheme.typography.h6)
                         Spacer(Modifier.height(8.dp))
                     }
+
+                    // Skills list (as chips)
                     items(resume.skills) { skill ->
                         SkillChip(skill)
                         Spacer(Modifier.height(6.dp))
                     }
+
+                    // Projects
+                    if (resume.projects.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Text("Projects", style = MaterialTheme.typography.h6)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        items(resume.projects) { project ->
+                            ProjectCard(project)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
+                    // Experience
+                    if (resume.experience.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Text("Experience", style = MaterialTheme.typography.h6)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        itemsIndexed(resume.experience) { _, exp ->
+                            ExperienceCard(exp)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
+                    // Education
+                    if (resume.education.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Text("Education", style = MaterialTheme.typography.h6)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        itemsIndexed(resume.education) { _, edu ->
+                            EducationCard(edu)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
+                    item { Spacer(Modifier.height(48.dp)) }
                 }
             }
             else -> {
@@ -76,6 +153,264 @@ fun ResumeScreen(
                     Button(onClick = onRefresh) { Text("Load") }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ContactRow(info: PersonalInfo) {
+    val uriHandler = LocalUriHandler.current
+
+    // encode helper for mailto subject/body (moved here so it's in scope before use)
+    fun encode(v: String): String = try { URLEncoder.encode(v, "UTF-8") } catch (t: Exception) { "" }
+
+    fun normalizeUrl(raw: String): String {
+        val trimmed = raw.trim()
+        val cleaned = if (trimmed.startsWith("@")) trimmed.substring(1) else trimmed
+        // If looks like a GitHub shorthand: single token without dot but possibly with a slash (user/repo)
+        fun looksLikeGithubToken(s: String): Boolean {
+            // contains no dot and not already a full URL
+            return !s.contains('.') && !s.startsWith("http://") && !s.startsWith("https://")
+        }
+
+        // LinkedIn heuristics: if value looks like an 'in/username' or a bare username, map to linkedin profile
+        fun looksLikeLinkedInToken(s: String): Boolean {
+            val s2 = s.removePrefix("@").removePrefix("/")
+            return !s2.contains('.') && (s2.startsWith("in/") || !s2.contains('/'))
+        }
+
+        // Normalize known host cases first
+        val lower = cleaned.lowercase()
+        if (lower.contains("github.com") || lower.contains("www.github.com")) {
+            return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
+        }
+        if (lower.contains("linkedin.com") || lower.contains("www.linkedin.com")) {
+            return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
+        }
+
+        // Heuristics: bare github username or user/repo -> map to github.com/<token>
+        if (looksLikeGithubToken(cleaned)) {
+            // If it contains a slash (user/repo) use as-is after prefixing domain
+            return when {
+                cleaned.contains('/') -> "https://github.com/${cleaned.trimStart('/')}"
+                else -> "https://github.com/${cleaned.trimStart('/')}"
+            }
+        }
+
+        // Heuristics: linkedin shorthand like 'in/username' or bare username -> map to linkedin profile
+        if (looksLikeLinkedInToken(cleaned)) {
+            val token = cleaned.removePrefix("/")
+            return if (token.startsWith("in/")) {
+                "https://www.linkedin.com/${token}"
+            } else {
+                // treat bare token as an 'in' profile
+                "https://www.linkedin.com/in/${token}"
+            }
+        }
+
+        // Default: ensure scheme
+        return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
+    }
+
+    // Short display label helpers for GitHub and LinkedIn
+    fun displayGithubLabel(raw: String): String {
+        val t = raw.trim()
+        // strip scheme/domain, leading @, and optional www
+        var s = t
+        s = s.removePrefix("http://").removePrefix("https://")
+        s = s.removePrefix("www.")
+        s = s.substringAfter("github.com/").trim().removePrefix("/")
+        if (s.isEmpty()) return t // fallback
+        return if (s.contains('/')) s else "@${s}"
+    }
+
+    fun displayLinkedInLabel(raw: String): String {
+        val t = raw.trim()
+        var s = t
+        s = s.removePrefix("http://").removePrefix("https://")
+        s = s.removePrefix("www.")
+        s = s.substringAfter("linkedin.com/").trim().removePrefix("/")
+        if (s.isEmpty()) return t
+        // If the token starts with in/ keep it; otherwise show 'in/<username>' to make it clear
+        return if (s.startsWith("in/")) s else "in/${s}"
+    }
+
+    // normalize phone to E.164 for tel: URIs using libphonenumber and format for display
+    fun normalizePhone(raw: String): String {
+        val util = PhoneNumberUtil.getInstance()
+        val region = Locale.getDefault().country.ifBlank { "US" }
+        return try {
+            val number = util.parse(raw, region)
+            util.format(number, PhoneNumberFormat.E164)
+        } catch (e: NumberParseException) {
+            // fallback: strip non-digits, preserve leading + if present
+            val t = raw.trim()
+            val hasPlus = t.startsWith("+")
+            val digits = t.filter { it.isDigit() }
+            if (digits.isEmpty()) "" else if (hasPlus) "+$digits" else digits
+        }
+    }
+
+    fun formatPhoneDisplay(raw: String): String {
+        val util = PhoneNumberUtil.getInstance()
+        val region = Locale.getDefault().country.ifBlank { "US" }
+        return try {
+            val number = util.parse(raw, region)
+            util.format(number, PhoneNumberFormat.NATIONAL)
+        } catch (e: NumberParseException) {
+            raw
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Email row: icon + text, whole row clickable -> mailto: with prefilled subject/body
+            info.email?.takeIf { it.trim().isNotBlank() }?.let { email ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                Log.d("ResumeApp", "Opening email: $email")
+                                val subject = encode("Inquiry from Resume App")
+                                val body = encode("Hello ${info.name ?: ""},\n\nI found your resume and would like to get in touch.\n\nBest,\n")
+                                uriHandler.openUri("mailto:${email.trim()}?subject=$subject&body=$body")
+                            } catch (t: Exception) {
+                                Log.w("ResumeApp", "Failed to open email URI", t)
+                            }
+                        }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Email, contentDescription = "email", tint = MaterialTheme.colors.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = email,
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
+                }
+            }
+
+            // Phone row: icon + number, clickable -> tel: (normalize number for tel URI)
+            info.phone?.takeIf { it.trim().isNotBlank() }?.let { phone ->
+                val telTarget = normalizePhone(phone)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                Log.d("ResumeApp", "Dialing phone: $phone -> tel:$telTarget")
+                                if (telTarget.isNotBlank()) uriHandler.openUri("tel:$telTarget")
+                            } catch (t: Exception) {
+                                Log.w("ResumeApp", "Failed to open phone URI", t)
+                            }
+                        }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Phone, contentDescription = "phone")
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = formatPhoneDisplay(phone),
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
+                }
+            }
+
+            // GitHub row: icon + link, clickable -> normalized https:// URL
+            info.github?.takeIf { it.trim().isNotBlank() }?.let { github ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                Log.d("ResumeApp", "Opening github: $github")
+                                uriHandler.openUri(normalizeUrl(github))
+                            } catch (t: Exception) {
+                                Log.w("ResumeApp", "Failed to open github URI", t)
+                            }
+                        }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Code, contentDescription = "github", tint = MaterialTheme.colors.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = displayGithubLabel(github),
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
+                }
+            }
+
+            // LinkedIn row: icon + link, clickable -> normalized https:// URL
+            info.linkedin?.takeIf { it.trim().isNotBlank() }?.let { linkedin ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                Log.d("ResumeApp", "Opening linkedin: $linkedin")
+                                uriHandler.openUri(normalizeUrl(linkedin))
+                            } catch (t: Exception) {
+                                Log.w("ResumeApp", "Failed to open linkedin URI", t)
+                            }
+                        }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Business, contentDescription = "linkedin", tint = MaterialTheme.colors.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = displayLinkedInLabel(linkedin),
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProjectCard(project: Project) {
+    Card(elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(project.name, fontWeight = FontWeight.Bold)
+            project.description?.let { Text(it) }
+            if (project.technologies.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text("Technologies: ${project.technologies.joinToString(", ")}")
+            }
+        }
+    }
+}
+
+@Composable
+fun ExperienceCard(exp: ExperienceEntry) {
+    Card(elevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("${exp.title} — ${exp.company}", fontWeight = FontWeight.Bold)
+            Row { Text(exp.startDate ?: ""); Spacer(Modifier.width(8.dp)); Text(exp.endDate ?: "") }
+            exp.location?.let { Text(it) }
+            if (exp.description.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Column { exp.description.forEach { d -> Text("• $d") } }
+            }
+        }
+    }
+}
+
+@Composable
+fun EducationCard(edu: EducationEntry) {
+    Card(elevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("${edu.degree} — ${edu.university}", fontWeight = FontWeight.Bold)
+            Row { Text(edu.startDate ?: ""); Spacer(Modifier.width(8.dp)); Text(edu.endDate ?: "") }
+            edu.gpa?.let { Text("GPA: $it") }
+            edu.location?.let { Text(it) }
         }
     }
 }
@@ -97,3 +432,248 @@ fun SkillChip(skill: Skill) {
     }
 }
 
+// Short display label helpers for GitHub and LinkedIn (moved to top-level for testing)
+fun displayGithubLabel(raw: String): String {
+    val t = raw.trim()
+    // strip scheme/domain, leading @, and optional www
+    var s = t
+    s = s.removePrefix("http://").removePrefix("https://")
+    s = s.removePrefix("www.")
+    s = s.substringAfter("github.com/").trim().removePrefix("/")
+    if (s.isEmpty()) return t // fallback
+    return if (s.contains('/')) s else "@${s}"
+}
+
+fun displayLinkedInLabel(raw: String): String {
+    val t = raw.trim()
+    var s = t
+    s = s.removePrefix("http://").removePrefix("https://")
+    s = s.removePrefix("www.")
+    s = s.substringAfter("linkedin.com/").trim().removePrefix("/")
+    if (s.isEmpty()) return t
+    // If the token starts with in/ keep it; otherwise show 'in/<username>' to make it clear
+    return if (s.startsWith("in/")) s else "in/${s}"
+}
+
+// Preview helpers
+
+@Preview(showBackground = true)
+@Composable
+fun ResumeScreenPreview() {
+    val sampleSkills = listOf(
+        Skill(name = "Kotlin", level = "programming_languages"),
+        Skill(name = "Jetpack Compose", level = "frameworks_libraries"),
+        Skill(name = "Firebase", level = "firebase_services")
+    )
+
+    val sampleProjects = listOf(
+        Project(
+            name = "Recipe Finder App",
+            description = "An Android app to search and save recipes.",
+            githubUrl = "github.com/janedoe/recipe-finder",
+            technologies = listOf("Kotlin", "Jetpack Compose", "Retrofit")
+        )
+    )
+
+    val sampleExperience = listOf(
+        ExperienceEntry(
+            company = "App Innovators Inc.",
+            title = "Senior Android Developer",
+            startDate = "2022-06-01",
+            endDate = "Present",
+            location = "City, State",
+            description = listOf("Led development of core features.", "Mentored junior developers.")
+        )
+    )
+
+    val sampleEducation = listOf(
+        EducationEntry(
+            university = "University of Technology",
+            degree = "Master of Science in Computer Science",
+            startDate = "2018-09-01",
+            endDate = "2020-05-31",
+            gpa = "3.9/4.0",
+            location = "City, State"
+        )
+    )
+
+    val personal = PersonalInfo(
+        name = "Jane Doe",
+        email = "jane.doe@example.com",
+        phone = "(123) 456-7890",
+        github = "github.com/janedoe",
+        linkedin = "linkedin.com/in/janedoe",
+        summary = "Highly motivated Android Developer with experience in Kotlin and Compose."
+    )
+
+    val sampleResume = Resume(
+        name = "Jane Doe",
+        title = "Senior Android Developer",
+        summary = "Experienced mobile engineer.",
+        skills = sampleSkills,
+        personalInfo = personal,
+        experience = sampleExperience,
+        education = sampleEducation,
+        projects = sampleProjects
+    )
+
+    ResumeScreen(
+        resume = sampleResume,
+        isLoading = false,
+        error = null,
+        onRefresh = {},
+        modifier = Modifier.fillMaxSize()
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ProjectCardPreview() {
+    val p = Project(
+        name = "Recipe Finder App",
+        description = "Search, save and share recipes.",
+        githubUrl = "github.com/janedoe/recipe-finder",
+        technologies = listOf("Kotlin", "Compose")
+    )
+    ProjectCard(p)
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ExperienceCardPreview() {
+    val e = ExperienceEntry(
+        company = "App Innovators Inc.",
+        title = "Senior Android Developer",
+        startDate = "2022-06-01",
+        endDate = "Present",
+        location = "City, State",
+        description = listOf("Led development.")
+    )
+    ExperienceCard(e)
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EducationCardPreview() {
+    val ed = EducationEntry(
+        university = "University of Technology",
+        degree = "MSc Computer Science",
+        startDate = "2018-09-01",
+        endDate = "2020-05-31",
+        gpa = "3.9/4.0",
+        location = "City, State"
+    )
+    EducationCard(ed)
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SkillChipPreview() {
+    SkillChip(Skill(name = "Kotlin", level = "programming_languages"))
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ContactRowPreview() {
+    ContactRow(
+        PersonalInfo(
+            name = "Jane Doe",
+            email = "jane.doe@example.com",
+            phone = "(123) 456-7890",
+            github = "github.com/janedoe",
+            linkedin = "linkedin.com/in/janedoe",
+            summary = "Sample summary"
+        )
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ResumeAppPreview() {
+    // create a small sample resume similar to ResumeScreenPreview
+    val sampleSkills = listOf(
+        Skill(name = "Kotlin", level = "programming_languages"),
+        Skill(name = "Jetpack Compose", level = "frameworks_libraries")
+    )
+
+    val sampleProjects = listOf(
+        Project(
+            name = "Recipe Finder App",
+            description = "An Android app to search and save recipes.",
+            githubUrl = "github.com/janedoe/recipe-finder",
+            technologies = listOf("Kotlin", "Jetpack Compose")
+        )
+    )
+
+    val sampleExperience = listOf(
+        ExperienceEntry(
+            company = "App Innovators Inc.",
+            title = "Senior Android Developer",
+            startDate = "2022-06-01",
+            endDate = "Present",
+            location = "City, State",
+            description = listOf("Led development of core features.")
+        )
+    )
+
+    val sampleEducation = listOf(
+        EducationEntry(
+            university = "University of Technology",
+            degree = "MSc Computer Science",
+            startDate = "2018-09-01",
+            endDate = "2020-05-31",
+            gpa = "3.9/4.0",
+            location = "City, State"
+        )
+    )
+
+    val personal = PersonalInfo(
+        name = "Jane Doe",
+        email = "jane.doe@example.com",
+        phone = "(123) 456-7890",
+        github = "github.com/janedoe",
+        linkedin = "linkedin.com/in/janedoe",
+        summary = "Highly motivated Android Developer with experience in Kotlin and Compose."
+    )
+
+    val sampleResume = Resume(
+        name = "Jane Doe",
+        title = "Senior Android Developer",
+        summary = "Experienced mobile engineer.",
+        skills = sampleSkills,
+        personalInfo = personal,
+        experience = sampleExperience,
+        education = sampleEducation,
+        projects = sampleProjects
+    )
+
+    MaterialTheme {
+        Scaffold(topBar = { TopAppBar(title = { Text("My Resume") }) }) { innerPadding ->
+            ResumeScreen(
+                resume = sampleResume,
+                isLoading = false,
+                error = null,
+                onRefresh = {},
+                modifier = Modifier.padding(innerPadding).fillMaxSize()
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ResumeScreenLoadingPreview() {
+    ResumeScreen(resume = null, isLoading = true, error = null, onRefresh = {})
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ResumeScreenErrorPreview() {
+    ResumeScreen(resume = null, isLoading = false, error = "Network error", onRefresh = {})
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ResumeScreenEmptyPreview() {
+    ResumeScreen(resume = null, isLoading = false, error = null, onRefresh = {})
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- For debug builds this file is used via a debug manifest overlay. Permit cleartext for the emulator host. -->
+    <base-config cleartextTrafficPermitted="true" />
+
+    <!-- Optionally restrict to the emulator loopback IP; kept for clarity but base-config covers it in debug. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

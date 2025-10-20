@@ -1,0 +1,14 @@
+{
+  "name": "resume-admin-server",
+  "version": "1.0.0",
+  "description": "Small admin-backed server that demonstrates Firebase Admin SDK usage for /resume (falls back to local JSON for dev)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.11.1"
+  }
+}
