@@ -35,7 +35,9 @@ object ResumeRepository {
     // Try network first (Retrofit). If that fails, only fall back to Firebase if it's initialized.
     suspend fun getResume(): Resume {
         return try {
-            api.getResume()
+            // Call the raw endpoint and parse into the app Resume model with tolerant parsing
+            val raw = api.getResumeRaw()
+            parseResumeFromMap(raw)
         } catch (networkException: Exception) {
             // Only attempt Firebase fallback if FirebaseApp is initialized in the process.
             val firebaseInitialized = try {

@@ -19,7 +19,8 @@ data class PersonalInfo(
     val phone: String? = null,
     val github: String? = null,
     val linkedin: String? = null,
-    val summary: String? = null
+    val summary: String? = null,
+    val profilePicture: String? = null
 )
 
 data class ExperienceEntry(

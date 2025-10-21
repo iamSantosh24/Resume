@@ -32,6 +32,15 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
 import com.google.i18n.phonenumbers.NumberParseException
 
+// Coil image loading for Compose
+import coil.compose.AsyncImage
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.material.Surface
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.BoxWithConstraints
+
 @Composable
 fun ResumeApp(viewModel: ResumeViewModel) {
     MaterialTheme {
@@ -45,6 +54,44 @@ fun ResumeApp(viewModel: ResumeViewModel) {
                 onRefresh = { viewModel.fetchResume() },
                 modifier = Modifier.padding(innerPadding).fillMaxSize()
             )
+        }
+    }
+}
+
+@Composable
+fun AvatarImage(photoUrl: String?, name: String?, modifier: Modifier = Modifier) {
+    val initials = name?.split(" ")?.mapNotNull { it.firstOrNull()?.toString()?.uppercase() }?.take(2)?.joinToString("") ?: ""
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // Use up to 60% of available width but cap at 375.dp
+        val available = this.maxWidth
+        val preferred = available * 0.6f
+        val size = if (preferred < 375.dp) preferred else 375.dp
+
+        if (!photoUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = photoUrl.trim(),
+                contentDescription = "Profile photo",
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .border(2.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.12f), CircleShape)
+            )
+        } else {
+            Surface(
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape),
+                color = Color(0xFFDDDDDD)
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = initials.ifBlank { "" },
+                        style = MaterialTheme.typography.h4,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }
@@ -75,7 +122,9 @@ fun ResumeScreen(
             resume != null -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item {
-                        // Header: Name / Title
+                        // Header: large centered avatar, Name / Title
+                        AvatarImage(photoUrl = resume.personalInfo?.profilePicture, name = resume.personalInfo?.name ?: resume.name)
+                        Spacer(Modifier.height(12.dp))
                         val displayName = resume.personalInfo?.name ?: resume.name
                         Text(displayName, style = MaterialTheme.typography.h5, fontWeight = FontWeight.Bold)
                         if (resume.title.isNotBlank()) {
@@ -364,7 +413,8 @@ fun ResumeScreenPreview() {
         phone = "(123) 456-7890",
         github = "github.com/janedoe",
         linkedin = "linkedin.com/in/janedoe",
-        summary = "Highly motivated Android Developer with experience in Kotlin and Compose."
+        summary = "Highly motivated Android Developer with experience in Kotlin and Compose.",
+        profilePicture = "https://via.placeholder.com/375"
     )
 
     val sampleResume = Resume(
@@ -443,7 +493,8 @@ fun ContactRowPreview() {
             phone = "(123) 456-7890",
             github = "github.com/janedoe",
             linkedin = "linkedin.com/in/janedoe",
-            summary = "Sample summary"
+            summary = "Sample summary",
+            profilePicture = "https://via.placeholder.com/375"
         )
     )
 }
@@ -494,7 +545,8 @@ fun ResumeAppPreview() {
         phone = "(123) 456-7890",
         github = "github.com/janedoe",
         linkedin = "linkedin.com/in/janedoe",
-        summary = "Highly motivated Android Developer with experience in Kotlin and Compose."
+        summary = "Highly motivated Android Developer with experience in Kotlin and Compose.",
+        profilePicture = "https://via.placeholder.com/375"
     )
 
     val sampleResume = Resume(

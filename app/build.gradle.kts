@@ -111,6 +111,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.3")
     // Material icons (extended) to get extra icons like Code and Business
     implementation("androidx.compose.material:material-icons-extended:1.5.3")
+    // Coil for image loading in Compose
+    implementation("io.coil-kt:coil-compose:2.4.0")
     // libphonenumber for robust phone parsing/formatting
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.29")
     // Tooling artifact (debug only) - provides classes used by the Compose tooling (previews, inspectors)
