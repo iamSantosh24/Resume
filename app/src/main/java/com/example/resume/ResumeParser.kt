@@ -11,15 +11,7 @@ fun parseResumeFromMap(raw: Map<*, *>): Resume {
     val name = raw.getString("name") ?: personal?.getString("name") ?: ""
     val title = raw.getString("title") ?: personal?.getString("title") ?: ""
     val summary = raw.getString("summary") ?: personal?.getString("summary") ?: ""
-
-    // Normalize photo URLs: if the backend returns a relative path, prefix with BASE_URL.
-    fun normalizePhotoUrl(rawUrl: String?): String? {
-        val v = rawUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        if (v.startsWith("http", ignoreCase = true)) return v
-        // BuildConfig.BASE_URL is provided by Gradle in the app module
-        val base = BuildConfig.BASE_URL
-        return if (v.startsWith("/")) base.trimEnd('/') + v else base + v
-    }
+    val profilePicture = raw.getString("profilePicture")?: personal?.getString("profilePicture")
 
     fun parseSkillsNode(node: Any?): List<Skill> {
         if (node == null) return emptyList()
@@ -168,15 +160,6 @@ fun parseResumeFromMap(raw: Map<*, *>): Resume {
     val projects = parseProjects(raw["projects"])
 
     val personalInfo = personal?.let { p ->
-        // Look for a photo URL under several common keys so the backend can use any reasonable name.
-        val rawPhoto = p.getString("photoUrl")
-            ?: p.getString("photo_url")
-            ?: p.getString("photo")
-            ?: p.getString("avatarUrl")
-            ?: p.getString("avatar_url")
-            ?: p.getString("avatar")
-
-        val photo = normalizePhotoUrl(rawPhoto)
 
         PersonalInfo(
             name = p.getString("name") ?: "",
@@ -185,7 +168,7 @@ fun parseResumeFromMap(raw: Map<*, *>): Resume {
             github = p.getString("github"),
             linkedin = p.getString("linkedin"),
             summary = p.getString("summary"),
-            profilePicture = photo
+            profilePicture = p.getString("profilePicture"),
         )
     }
 
