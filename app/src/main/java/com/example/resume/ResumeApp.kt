@@ -7,13 +7,13 @@ import androidx.compose.material.Text
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextDecoration
@@ -63,7 +63,10 @@ fun ResumeScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
             error != null -> {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.align(Alignment.Center)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
                     Text("Error: $error")
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = onRefresh) { Text("Retry") }
@@ -161,213 +164,84 @@ fun ResumeScreen(
 fun ContactRow(info: PersonalInfo) {
     val uriHandler = LocalUriHandler.current
 
-    // encode helper for mailto subject/body (moved here so it's in scope before use)
     fun encode(v: String): String = try { URLEncoder.encode(v, "UTF-8") } catch (t: Exception) { "" }
 
-    fun normalizeUrl(raw: String): String {
-        val trimmed = raw.trim()
-        val cleaned = if (trimmed.startsWith("@")) trimmed.substring(1) else trimmed
-        // If looks like a GitHub shorthand: single token without dot but possibly with a slash (user/repo)
-        fun looksLikeGithubToken(s: String): Boolean {
-            // contains no dot and not already a full URL
-            return !s.contains('.') && !s.startsWith("http://") && !s.startsWith("https://")
-        }
-
-        // LinkedIn heuristics: if value looks like an 'in/username' or a bare username, map to linkedin profile
-        fun looksLikeLinkedInToken(s: String): Boolean {
-            val s2 = s.removePrefix("@").removePrefix("/")
-            return !s2.contains('.') && (s2.startsWith("in/") || !s2.contains('/'))
-        }
-
-        // Normalize known host cases first
-        val lower = cleaned.lowercase()
-        if (lower.contains("github.com") || lower.contains("www.github.com")) {
-            return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
-        }
-        if (lower.contains("linkedin.com") || lower.contains("www.linkedin.com")) {
-            return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
-        }
-
-        // Heuristics: bare github username or user/repo -> map to github.com/<token>
-        if (looksLikeGithubToken(cleaned)) {
-            // If it contains a slash (user/repo) use as-is after prefixing domain
-            return when {
-                cleaned.contains('/') -> "https://github.com/${cleaned.trimStart('/')}"
-                else -> "https://github.com/${cleaned.trimStart('/')}"
-            }
-        }
-
-        // Heuristics: linkedin shorthand like 'in/username' or bare username -> map to linkedin profile
-        if (looksLikeLinkedInToken(cleaned)) {
-            val token = cleaned.removePrefix("/")
-            return if (token.startsWith("in/")) {
-                "https://www.linkedin.com/${token}"
-            } else {
-                // treat bare token as an 'in' profile
-                "https://www.linkedin.com/in/${token}"
-            }
-        }
-
-        // Default: ensure scheme
-        return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
-    }
-
-    // Short display label helpers for GitHub and LinkedIn
-    fun displayGithubLabel(raw: String): String {
-        val t = raw.trim()
-        // strip scheme/domain, leading @, and optional www
-        var s = t
-        s = s.removePrefix("http://").removePrefix("https://")
-        s = s.removePrefix("www.")
-        s = s.substringAfter("github.com/").trim().removePrefix("/")
-        if (s.isEmpty()) return t // fallback
-        return if (s.contains('/')) s else "@${s}"
-    }
-
-    fun displayLinkedInLabel(raw: String): String {
-        val t = raw.trim()
-        var s = t
-        s = s.removePrefix("http://").removePrefix("https://")
-        s = s.removePrefix("www.")
-        s = s.substringAfter("linkedin.com/").trim().removePrefix("/")
-        if (s.isEmpty()) return t
-        // If the token starts with in/ keep it; otherwise show 'in/<username>' to make it clear
-        return if (s.startsWith("in/")) s else "in/${s}"
-    }
-
-    // normalize phone to E.164 for tel: URIs using libphonenumber and format for display
     fun normalizePhone(raw: String): String {
-        val util = PhoneNumberUtil.getInstance()
-        val region = Locale.getDefault().country.ifBlank { "US" }
+        val trimmed = raw.trim()
+        val phoneUtil = PhoneNumberUtil.getInstance()
         return try {
-            val number = util.parse(raw, region)
-            util.format(number, PhoneNumberFormat.E164)
+            val region = Locale.getDefault().country.ifBlank { "US" }
+            val parsed = phoneUtil.parse(trimmed, region)
+            if (phoneUtil.isValidNumber(parsed)) phoneUtil.format(parsed, PhoneNumberFormat.E164) else trimmed.filter { it.isDigit() || it == '+' }
         } catch (e: NumberParseException) {
-            // fallback: strip non-digits, preserve leading + if present
-            val t = raw.trim()
-            val hasPlus = t.startsWith("+")
-            val digits = t.filter { it.isDigit() }
-            if (digits.isEmpty()) "" else if (hasPlus) "+$digits" else digits
+            trimmed.filter { it.isDigit() || it == '+' }
         }
     }
 
     fun formatPhoneDisplay(raw: String): String {
-        val util = PhoneNumberUtil.getInstance()
-        val region = Locale.getDefault().country.ifBlank { "US" }
+        val trimmed = raw.trim()
+        val phoneUtil = PhoneNumberUtil.getInstance()
         return try {
-            val number = util.parse(raw, region)
-            util.format(number, PhoneNumberFormat.NATIONAL)
+            val region = Locale.getDefault().country.ifBlank { "US" }
+            val parsed = phoneUtil.parse(trimmed, region)
+            if (phoneUtil.isValidNumber(parsed)) phoneUtil.format(parsed, PhoneNumberFormat.NATIONAL) else trimmed
         } catch (e: NumberParseException) {
-            raw
+            trimmed
         }
+    }
+
+    fun normalizeUrl(raw: String): String {
+        val trimmed = raw.trim()
+        val cleaned = if (trimmed.startsWith("@")) trimmed.substring(1) else trimmed
+        if (cleaned.contains("github.com") || cleaned.contains("linkedin.com")) return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
+        if (!cleaned.contains('.') && !cleaned.startsWith("http")) return "https://github.com/${cleaned.trimStart('/')}"
+        return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Email row: icon + text, whole row clickable -> mailto: with prefilled subject/body
             info.email?.takeIf { it.trim().isNotBlank() }?.let { email ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            try {
-                                Log.d("ResumeApp", "Opening email: $email")
-                                val subject = encode("Inquiry from Resume App")
-                                val body = encode("Hello ${info.name ?: ""},\n\nI found your resume and would like to get in touch.\n\nBest,\n")
-                                uriHandler.openUri("mailto:${email.trim()}?subject=$subject&body=$body")
-                            } catch (t: Exception) {
-                                Log.w("ResumeApp", "Failed to open email URI", t)
-                            }
-                        }
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        try {
+                            val subject = encode("Inquiry from Resume App")
+                            val body = encode("Hello ${info.name},\n\nI found your resume and would like to get in touch.\n\nBest,\n")
+                            uriHandler.openUri("mailto:${email.trim()}?subject=$subject&body=$body")
+                        } catch (t: Exception) { Log.w("ResumeApp", "Failed to open email URI", t) }
+                    }
+                    .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Email, contentDescription = "email", tint = MaterialTheme.colors.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = email,
-                        color = MaterialTheme.colors.primary,
-                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
-                    )
+                    Text(text = email, color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
                 }
             }
 
-            // Phone row: icon + number, clickable -> tel: (normalize number for tel URI)
             info.phone?.takeIf { it.trim().isNotBlank() }?.let { phone ->
                 val telTarget = normalizePhone(phone)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            try {
-                                Log.d("ResumeApp", "Dialing phone: $phone -> tel:$telTarget")
-                                if (telTarget.isNotBlank()) uriHandler.openUri("tel:$telTarget")
-                            } catch (t: Exception) {
-                                Log.w("ResumeApp", "Failed to open phone URI", t)
-                            }
-                        }
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { try { if (telTarget.isNotBlank()) uriHandler.openUri("tel:$telTarget") } catch (t: Exception) { Log.w("ResumeApp", "Failed to open phone URI", t) } }
+                    .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Phone, contentDescription = "phone")
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = formatPhoneDisplay(phone),
-                        color = MaterialTheme.colors.primary,
-                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
-                    )
+                    Text(text = formatPhoneDisplay(phone), color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
                 }
             }
 
-            // GitHub row: icon + link, clickable -> normalized https:// URL
             info.github?.takeIf { it.trim().isNotBlank() }?.let { github ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            try {
-                                Log.d("ResumeApp", "Opening github: $github")
-                                uriHandler.openUri(normalizeUrl(github))
-                            } catch (t: Exception) {
-                                Log.w("ResumeApp", "Failed to open github URI", t)
-                            }
-                        }
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth().clickable { try { uriHandler.openUri(normalizeUrl(github)) } catch (t: Exception) { Log.w("ResumeApp", "Failed to open github URI", t) } }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Code, contentDescription = "github", tint = MaterialTheme.colors.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = displayGithubLabel(github),
-                        color = MaterialTheme.colors.primary,
-                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
-                    )
+                    Text(text = github, color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
                 }
             }
 
-            // LinkedIn row: icon + link, clickable -> normalized https:// URL
             info.linkedin?.takeIf { it.trim().isNotBlank() }?.let { linkedin ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            try {
-                                Log.d("ResumeApp", "Opening linkedin: $linkedin")
-                                uriHandler.openUri(normalizeUrl(linkedin))
-                            } catch (t: Exception) {
-                                Log.w("ResumeApp", "Failed to open linkedin URI", t)
-                            }
-                        }
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth().clickable { try { uriHandler.openUri(normalizeUrl(linkedin)) } catch (t: Exception) { Log.w("ResumeApp", "Failed to open linkedin URI", t) } }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Business, contentDescription = "linkedin", tint = MaterialTheme.colors.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = displayLinkedInLabel(linkedin),
-                        color = MaterialTheme.colors.primary,
-                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
-                    )
+                    Text(text = linkedin, color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
                 }
             }
         }
@@ -417,11 +291,7 @@ fun EducationCard(edu: EducationEntry) {
 
 @Composable
 fun SkillChip(skill: Skill) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFEEEEEE),
-        modifier = Modifier.padding(4.dp)
-    ) {
+    Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFEEEEEE), modifier = Modifier.padding(4.dp)) {
         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(skill.name)
             if (!skill.level.isNullOrBlank()) {
@@ -432,30 +302,21 @@ fun SkillChip(skill: Skill) {
     }
 }
 
-// Short display label helpers for GitHub and LinkedIn (moved to top-level for testing)
 fun displayGithubLabel(raw: String): String {
     val t = raw.trim()
-    // strip scheme/domain, leading @, and optional www
-    var s = t
-    s = s.removePrefix("http://").removePrefix("https://")
-    s = s.removePrefix("www.")
+    var s = t.removePrefix("http://").removePrefix("https://").removePrefix("www.")
     s = s.substringAfter("github.com/").trim().removePrefix("/")
-    if (s.isEmpty()) return t // fallback
+    if (s.isEmpty()) return t
     return if (s.contains('/')) s else "@${s}"
 }
 
 fun displayLinkedInLabel(raw: String): String {
     val t = raw.trim()
-    var s = t
-    s = s.removePrefix("http://").removePrefix("https://")
-    s = s.removePrefix("www.")
+    var s = t.removePrefix("http://").removePrefix("https://").removePrefix("www.")
     s = s.substringAfter("linkedin.com/").trim().removePrefix("/")
     if (s.isEmpty()) return t
-    // If the token starts with in/ keep it; otherwise show 'in/<username>' to make it clear
     return if (s.startsWith("in/")) s else "in/${s}"
 }
-
-// Preview helpers
 
 @Preview(showBackground = true)
 @Composable

@@ -1,11 +1,11 @@
 package com.example.resume
 
-import com.example.resume.BuildConfig
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import com.google.firebase.FirebaseApp
+import java.util.concurrent.TimeUnit
 
 object ResumeRepository {
     // Use the Gradle-provided BuildConfig field so the URL can be configured per-build.
@@ -17,7 +17,13 @@ object ResumeRepository {
             // Only enable BODY-level logging in debug builds; otherwise use BASIC to reduce noise.
             setLevel(if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.BASIC)
         }
-        val client = OkHttpClient.Builder().addInterceptor(logging).build()
+        // Add sensible timeouts to avoid very short default timeouts causing spurious failures
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .build()
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)

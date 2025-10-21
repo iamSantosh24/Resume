@@ -4,6 +4,11 @@ import android.app.Application
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import coil.Coil
+import coil.ImageLoader
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 
 class ResumeApplication : Application() {
     override fun onCreate() {
