@@ -41,11 +41,15 @@ import androidx.compose.material.Surface
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.BoxWithConstraints
 
+// NEW imports for gradient background
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+
 @Composable
 fun ResumeApp(viewModel: ResumeViewModel) {
     MaterialTheme {
         Scaffold(
-            topBar = { TopAppBar(title = { Text("My Resume") }) }
+            topBar = { TopAppBar(title = { Text("Santosh's Resume") }) }
         ) { innerPadding ->
             ResumeScreen(
                 resume = viewModel.resume,
@@ -65,7 +69,7 @@ fun AvatarImage(photoUrl: String?, name: String?, modifier: Modifier = Modifier)
     BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         // Use up to 60% of available width but cap at 375.dp
         val available = this.maxWidth
-        val preferred = available * 0.6f
+        val preferred = available * 1.0f
         val size = if (preferred < 375.dp) preferred else 375.dp
 
         if (!photoUrl.isNullOrBlank()) {
@@ -104,7 +108,19 @@ fun ResumeScreen(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.padding(16.dp)) {
+    // Apply a subtle vertical gradient behind the whole screen. Keep modifier usage minimal so caller's sizing is preserved.
+    Box(
+        modifier = modifier
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF4CAF50), // green (Material Green 500)
+                        Color(0xFFFFEB3B)  // yellow (Material Yellow 500)
+                    )
+                )
+            )
+            .padding(16.dp)
+    ) {
         when {
             isLoading -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -243,7 +259,7 @@ fun ContactRow(info: PersonalInfo) {
         val trimmed = raw.trim()
         val cleaned = if (trimmed.startsWith("@")) trimmed.substring(1) else trimmed
         if (cleaned.contains("github.com") || cleaned.contains("linkedin.com")) return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
-        if (!cleaned.contains('.') && !cleaned.startsWith("http")) return "https://github.com/${cleaned.trimStart('/')}"
+        if (!cleaned.contains('.') && !cleaned.startsWith("http")) return "https://github.com/${cleaned.trimStart('/') }"
         return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
     }
 
