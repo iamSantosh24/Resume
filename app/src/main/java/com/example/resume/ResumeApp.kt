@@ -1,39 +1,38 @@
 package com.example.resume
 
 import android.util.Log
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.material.TopAppBar
+import java.net.URLEncoder
+import java.util.Locale
+
+import com.example.resume.navigation.AppNavGraph
+
+import coil.compose.AsyncImage
+
+import com.google.i18n.phonenumbers.NumberParseException
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,32 +43,12 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.google.i18n.phonenumbers.NumberParseException
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
-import java.net.URLEncoder
-import java.util.Locale
 
 @Composable
 fun ResumeApp(viewModel: ResumeViewModel) {
-    MaterialTheme {
-        Scaffold(
-            topBar = { TopAppBar(title = { Text("Santosh's Resume") }) }
-        ) { innerPadding ->
-            ResumeScreen(
-                resume = viewModel.resume,
-                isLoading = viewModel.isLoading,
-                error = viewModel.errorMessage,
-                onRefresh = { viewModel.fetchResume() },
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-            )
-        }
-    }
+    // Use the app navigation graph which will host the tabbed UI as the Home destination.
+    MaterialTheme { AppNavGraph(viewModel = viewModel) }
 }
 
 @Composable
@@ -207,31 +186,8 @@ fun ResumeScreen(
                         }
                     }
 
-                    // Experience
-                    if (resume.experience.isNotEmpty()) {
-                        item {
-                            Spacer(Modifier.height(12.dp))
-                            Text("Experience", style = MaterialTheme.typography.h6)
-                            Spacer(Modifier.height(8.dp))
-                        }
-                        itemsIndexed(resume.experience) { _, exp ->
-                            ExperienceCard(exp)
-                            Spacer(Modifier.height(8.dp))
-                        }
-                    }
-
-                    // Education
-                    if (resume.education.isNotEmpty()) {
-                        item {
-                            Spacer(Modifier.height(12.dp))
-                            Text("Education", style = MaterialTheme.typography.h6)
-                            Spacer(Modifier.height(8.dp))
-                        }
-                        itemsIndexed(resume.education) { _, edu ->
-                            EducationCard(edu)
-                            Spacer(Modifier.height(8.dp))
-                        }
-                    }
+                    // Experience & Education (moved to a dedicated lazy-aware composable extension)
+                    experienceEducationItems(experience = resume.experience, education = resume.education)
 
                     item { Spacer(Modifier.height(48.dp)) }
                 }
@@ -314,7 +270,7 @@ fun ContactRow(info: PersonalInfo) {
             info.email?.takeIf { it.trim().isNotBlank() }?.let { email ->
                 Row(modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .clickable(indication = LocalIndication.current, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) {
                         try {
                             val subject = encode("Inquiry from Resume App")
                             val body =
@@ -326,7 +282,7 @@ fun ContactRow(info: PersonalInfo) {
                     }
                     .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Email,
+                        Icons.Filled.Email,
                         contentDescription = "email",
                         tint = MaterialTheme.colors.primary
                     )
@@ -343,7 +299,7 @@ fun ContactRow(info: PersonalInfo) {
                 val telTarget = normalizePhone(phone)
                 Row(modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .clickable(indication = LocalIndication.current, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) {
                         try {
                             if (telTarget.isNotBlank()) uriHandler.openUri("tel:$telTarget")
                         } catch (t: Exception) {
@@ -351,7 +307,7 @@ fun ContactRow(info: PersonalInfo) {
                         }
                     }
                     .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Phone, contentDescription = "phone")
+                    Icon(Icons.Filled.Phone, contentDescription = "phone")
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = formatPhoneDisplay(phone),
@@ -364,7 +320,7 @@ fun ContactRow(info: PersonalInfo) {
             info.github?.takeIf { it.trim().isNotBlank() }?.let { github ->
                 Row(modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .clickable(indication = LocalIndication.current, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) {
                         try {
                             uriHandler.openUri(normalizeUrl(github))
                         } catch (t: Exception) {
@@ -373,7 +329,7 @@ fun ContactRow(info: PersonalInfo) {
                     }
                     .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Code,
+                        Icons.Filled.Code,
                         contentDescription = "github",
                         tint = MaterialTheme.colors.primary
                     )
@@ -389,7 +345,7 @@ fun ContactRow(info: PersonalInfo) {
             info.linkedin?.takeIf { it.trim().isNotBlank() }?.let { linkedin ->
                 Row(modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .clickable(indication = LocalIndication.current, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) {
                         try {
                             uriHandler.openUri(normalizeUrl(linkedin))
                         } catch (t: Exception) {
@@ -398,7 +354,7 @@ fun ContactRow(info: PersonalInfo) {
                     }
                     .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Business,
+                        Icons.Filled.Business,
                         contentDescription = "linkedin",
                         tint = MaterialTheme.colors.primary
                     )
@@ -531,10 +487,152 @@ fun ContactRowPreview() {
     )
 }
 
+@Composable
+fun TabbedResumeAppContent(
+    sampleResume: Resume?,
+    isLoading: Boolean = false,
+    error: String? = null,
+    onRefresh: () -> Unit = {}
+) {
+    // A simple saveable tab state so selection survives configuration changes
+    var selectedTab by rememberSaveable { mutableStateOf(BottomTab.Home) }
+
+    val titleText = sampleResume?.personalInfo?.name ?: sampleResume?.name ?: "My Resume"
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text(titleText) }) },
+        bottomBar = {
+            BottomNavigation {
+                BottomNavigationItem(
+                    icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
+                    selected = selectedTab == BottomTab.Home,
+                    onClick = { selectedTab = BottomTab.Home }
+                )
+                BottomNavigationItem(
+                    icon = { Icon(Icons.Filled.Work, contentDescription = "Employment") },
+                    label = { Text("Employment") },
+                    selected = selectedTab == BottomTab.Employment,
+                    onClick = { selectedTab = BottomTab.Employment }
+                )
+                BottomNavigationItem(
+                    icon = { Icon(Icons.Filled.School, contentDescription = "Education") },
+                    label = { Text("Education") },
+                    selected = selectedTab == BottomTab.Education,
+                    onClick = { selectedTab = BottomTab.Education }
+                )
+            }
+        }
+    ) { innerPadding ->
+        // Content area: show different composables depending on selected tab
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            when (selectedTab) {
+                BottomTab.Home -> {
+                    // show personal info summary - reuse ContactRow and header pieces
+                    when {
+                        isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        error != null -> Column(modifier = Modifier.align(Alignment.Center)) {
+                            Text("Error: $error")
+                            Spacer(Modifier.height(8.dp))
+                            Button(onClick = onRefresh) { Text("Retry") }
+                        }
+                        sampleResume != null -> PersonalInfoScreen(personal = sampleResume.personalInfo ?: PersonalInfo(name = sampleResume.name), displayName = sampleResume.name, title = sampleResume.title)
+                        else -> PersonalInfoPreviewContent()
+                    }
+                }
+                BottomTab.Employment -> {
+                    if (!isLoading && sampleResume?.experience != null) ExperienceList(sampleResume.experience)
+                    else ExperienceListPreviewContent()
+                }
+                BottomTab.Education -> {
+                    if (!isLoading && sampleResume?.education != null) EducationList(sampleResume.education)
+                    else EducationListPreviewContent()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TabbedResumeApp(viewModel: ResumeViewModel) {
+    TabbedResumeAppContent(sampleResume = viewModel.resume, isLoading = viewModel.isLoading, error = viewModel.errorMessage, onRefresh = { viewModel.fetchResume() })
+}
+
+private enum class BottomTab { Home, Employment, Education }
+
+@Composable
+fun ExperienceList(items: List<ExperienceEntry>) {
+    if (items.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No employment history")
+        }
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        items(items) { exp ->
+            ExperienceCard(exp)
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun EducationList(items: List<EducationEntry>) {
+    if (items.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No education records")
+        }
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        items(items) { ed ->
+            EducationCard(ed)
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+// Minimal preview content adapters (reuse data from previews defined earlier)
+@Composable
+private fun ResumeScreenPreviewContent() {
+    // Recreate the sampleResume from ResumeScreenPreview since sample data is local to that function
+    ResumeScreenPreview()
+}
+
+@Composable
+private fun ExperienceListPreviewContent() {
+    val sample = listOf(
+        ExperienceEntry(
+            company = "App Innovators Inc.",
+            title = "Senior Android Developer",
+            startDate = "2022-06-01",
+            endDate = "Present",
+            location = "City, State",
+            description = listOf("Led development of core features.")
+        )
+    )
+    ExperienceList(sample)
+}
+
+@Composable
+private fun EducationListPreviewContent() {
+    val sample = listOf(
+        EducationEntry(
+            university = "University of Technology",
+            degree = "MSc Computer Science",
+            startDate = "2018-09-01",
+            endDate = "2020-05-31",
+            gpa = "3.9/4.0",
+            location = "City, State"
+        )
+    )
+    EducationList(sample)
+}
+
+// Update Preview to show TabbedResumeApp with a sample resume
 @Preview(showBackground = true)
 @Composable
 fun ResumeAppPreview() {
-    // create a small sample resume similar to ResumeScreenPreview
     val sampleSkills = listOf(
         Skill(name = "Kotlin", level = "programming_languages"),
         Skill(name = "Jetpack Compose", level = "frameworks_libraries")
@@ -594,17 +692,7 @@ fun ResumeAppPreview() {
     )
 
     MaterialTheme {
-        Scaffold(topBar = { TopAppBar(title = { Text("My Resume") }) }) { innerPadding ->
-            ResumeScreen(
-                resume = sampleResume,
-                isLoading = false,
-                error = null,
-                onRefresh = {},
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-            )
-        }
+        TabbedResumeAppContent(sampleResume)
     }
 }
 
@@ -624,4 +712,62 @@ fun ResumeScreenErrorPreview() {
 @Composable
 fun ResumeScreenEmptyPreview() {
     ResumeScreen(resume = null, isLoading = false, error = null, onRefresh = {})
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PersonalInfoScreen(personal: PersonalInfo?, displayName: String? = null, title: String? = null) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Pinned header containing avatar, name and title
+        stickyHeader {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colors.surface)
+                    .padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AvatarImage(photoUrl = personal?.profilePicture, name = personal?.name ?: displayName)
+                Spacer(Modifier.height(12.dp))
+                val nameToShow = personal?.name ?: displayName
+                if (!nameToShow.isNullOrBlank()) Text(nameToShow, style = MaterialTheme.typography.h5, fontWeight = FontWeight.Bold)
+                if (!title.isNullOrBlank()) Text(title, style = MaterialTheme.typography.subtitle1)
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        // Body: summary
+        item {
+            personal?.summary?.let { s ->
+                if (s.isNotBlank()) {
+                    Text(s, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+        }
+
+        // Contact/details area
+        item {
+            personal?.let { ContactRow(it) }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun PersonalInfoPreviewContent() {
+    val personal = PersonalInfo(
+        name = "Jane Doe",
+        email = "jane.doe@example.com",
+        phone = "(123) 456-7890",
+        github = "github.com/janedoe",
+        linkedin = "linkedin.com/in/janedoe",
+        summary = "Highly motivated Android Developer with experience in Kotlin and Compose.",
+        profilePicture = "https://via.placeholder.com/375"
+    )
+    PersonalInfoScreen(personal = personal, displayName = personal.name, title = "Senior Android Developer")
 }

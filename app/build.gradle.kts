@@ -116,6 +116,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
     implementation("androidx.navigation:navigation-fragment-ktx:2.9.5")
     implementation("androidx.navigation:navigation-ui-ktx:2.9.5")
+    // Navigation for Jetpack Compose
+    implementation("androidx.navigation:navigation-compose:2.6.0")
 
     // Jetpack Compose (using explicit versions; keep these if you hit compiler mismatches)
     implementation("androidx.activity:activity-compose:1.8.0")
@@ -128,6 +130,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
     // libphonenumber for robust phone parsing/formatting
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.29")
+    implementation(libs.androidx.foundation.layout.android)
     // Tooling artifact (debug only) - provides classes used by the Compose tooling (previews, inspectors)
     debugImplementation("androidx.compose.ui:ui-tooling:1.5.3")
 
