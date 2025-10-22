@@ -32,6 +32,12 @@ class ResumeApplication : Application() {
             } else {
                 Log.i("ResumeApplication", "Firebase default app initialized")
             }
+
+            // Runtime visibility: print key BuildConfig values so we can confirm what the build injected
+            Log.i("ResumeApplication", "BuildConfig.BASE_URL=${BuildConfig.BASE_URL}")
+            Log.i("ResumeApplication", "BuildConfig.PREFER_FIREBASE=${BuildConfig.PREFER_FIREBASE}")
+            Log.i("ResumeApplication", "BuildConfig.FIREBASE_DATABASE_URL=${BuildConfig.FIREBASE_DATABASE_URL}")
+
         } catch (t: Throwable) {
             Log.w("ResumeApplication", "Firebase initialization failed", t)
         }

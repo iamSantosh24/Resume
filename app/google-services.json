@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "47312628943",
+    "firebase_url": "https://resume-b707f-default-rtdb.firebaseio.com",
+    "project_id": "resume-b707f",
+    "storage_bucket": "resume-b707f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:47312628943:android:347c2656662544706cdbba",
+        "android_client_info": {
+          "package_name": "com.example.resume"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYo7yDveRWgI00lEkGbvn2xpie6tvaI5U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

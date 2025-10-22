@@ -1,49 +1,57 @@
 package com.example.resume
 
 import android.util.Log
-import androidx.compose.material.*
-import androidx.compose.runtime.Composable
-import androidx.compose.material.Text
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.Alignment
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.Button
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Business
-import java.net.URLEncoder
-import java.util.Locale
-
-// libphonenumber imports
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
-import com.google.i18n.phonenumbers.NumberParseException
-
-// Coil image loading for Compose
-import coil.compose.AsyncImage
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.border
-import androidx.compose.material.Surface
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.layout.BoxWithConstraints
-
-// NEW imports for gradient background
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Brush
+import java.net.URLEncoder
+import java.util.Locale
 
 @Composable
 fun ResumeApp(viewModel: ResumeViewModel) {
@@ -56,7 +64,9 @@ fun ResumeApp(viewModel: ResumeViewModel) {
                 isLoading = viewModel.isLoading,
                 error = viewModel.errorMessage,
                 onRefresh = { viewModel.fetchResume() },
-                modifier = Modifier.padding(innerPadding).fillMaxSize()
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
             )
         }
     }
@@ -64,10 +74,11 @@ fun ResumeApp(viewModel: ResumeViewModel) {
 
 @Composable
 fun AvatarImage(photoUrl: String?, name: String?, modifier: Modifier = Modifier) {
-    val initials = name?.split(" ")?.mapNotNull { it.firstOrNull()?.toString()?.uppercase() }?.take(2)?.joinToString("") ?: ""
+    val initials =
+        name?.split(" ")?.mapNotNull { it.firstOrNull()?.toString()?.uppercase() }?.take(2)
+            ?.joinToString("") ?: ""
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        // Use up to 60% of available width but cap at 375.dp
         val available = this.maxWidth
         val preferred = available * 1.0f
         val size = if (preferred < 375.dp) preferred else 375.dp
@@ -79,7 +90,9 @@ fun AvatarImage(photoUrl: String?, name: String?, modifier: Modifier = Modifier)
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
-                    .border(2.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.12f), CircleShape)
+                    .border(2.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.12f), CircleShape),
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center
             )
         } else {
             Surface(
@@ -125,6 +138,7 @@ fun ResumeScreen(
             isLoading -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
+
             error != null -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -135,14 +149,22 @@ fun ResumeScreen(
                     Button(onClick = onRefresh) { Text("Retry") }
                 }
             }
+
             resume != null -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item {
                         // Header: large centered avatar, Name / Title
-                        AvatarImage(photoUrl = resume.personalInfo?.profilePicture, name = resume.personalInfo?.name ?: resume.name)
+                        AvatarImage(
+                            photoUrl = resume.personalInfo?.profilePicture,
+                            name = resume.personalInfo?.name ?: resume.name
+                        )
                         Spacer(Modifier.height(12.dp))
                         val displayName = resume.personalInfo?.name ?: resume.name
-                        Text(displayName, style = MaterialTheme.typography.h5, fontWeight = FontWeight.Bold)
+                        Text(
+                            displayName,
+                            style = MaterialTheme.typography.h5,
+                            fontWeight = FontWeight.Bold
+                        )
                         if (resume.title.isNotBlank()) {
                             Text(resume.title, style = MaterialTheme.typography.subtitle1)
                         }
@@ -214,8 +236,12 @@ fun ResumeScreen(
                     item { Spacer(Modifier.height(48.dp)) }
                 }
             }
+
             else -> {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.align(Alignment.Center)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
                     Text("No resume loaded")
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = onRefresh) { Text("Load") }
@@ -229,7 +255,11 @@ fun ResumeScreen(
 fun ContactRow(info: PersonalInfo) {
     val uriHandler = LocalUriHandler.current
 
-    fun encode(v: String): String = try { URLEncoder.encode(v, "UTF-8") } catch (t: Exception) { "" }
+    fun encode(v: String): String = try {
+        URLEncoder.encode(v, "UTF-8")
+    } catch (t: Exception) {
+        ""
+    }
 
     fun normalizePhone(raw: String): String {
         val trimmed = raw.trim()
@@ -237,7 +267,10 @@ fun ContactRow(info: PersonalInfo) {
         return try {
             val region = Locale.getDefault().country.ifBlank { "US" }
             val parsed = phoneUtil.parse(trimmed, region)
-            if (phoneUtil.isValidNumber(parsed)) phoneUtil.format(parsed, PhoneNumberFormat.E164) else trimmed.filter { it.isDigit() || it == '+' }
+            if (phoneUtil.isValidNumber(parsed)) phoneUtil.format(
+                parsed,
+                PhoneNumberFormat.E164
+            ) else trimmed.filter { it.isDigit() || it == '+' }
         } catch (e: NumberParseException) {
             trimmed.filter { it.isDigit() || it == '+' }
         }
@@ -249,7 +282,10 @@ fun ContactRow(info: PersonalInfo) {
         return try {
             val region = Locale.getDefault().country.ifBlank { "US" }
             val parsed = phoneUtil.parse(trimmed, region)
-            if (phoneUtil.isValidNumber(parsed)) phoneUtil.format(parsed, PhoneNumberFormat.NATIONAL) else trimmed
+            if (phoneUtil.isValidNumber(parsed)) phoneUtil.format(
+                parsed,
+                PhoneNumberFormat.NATIONAL
+            ) else trimmed
         } catch (e: NumberParseException) {
             trimmed
         }
@@ -258,27 +294,48 @@ fun ContactRow(info: PersonalInfo) {
     fun normalizeUrl(raw: String): String {
         val trimmed = raw.trim()
         val cleaned = if (trimmed.startsWith("@")) trimmed.substring(1) else trimmed
-        if (cleaned.contains("github.com") || cleaned.contains("linkedin.com")) return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
-        if (!cleaned.contains('.') && !cleaned.startsWith("http")) return "https://github.com/${cleaned.trimStart('/') }"
+        if (cleaned.contains("github.com") || cleaned.contains("linkedin.com")) return if (trimmed.startsWith(
+                "http"
+            )
+        ) trimmed else "https://$trimmed"
+        if (!cleaned.contains('.') && !cleaned.startsWith("http")) return "https://github.com/${
+            cleaned.trimStart(
+                '/'
+            )
+        }"
         return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             info.email?.takeIf { it.trim().isNotBlank() }?.let { email ->
                 Row(modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
                         try {
                             val subject = encode("Inquiry from Resume App")
-                            val body = encode("Hello ${info.name},\n\nI found your resume and would like to get in touch.\n\nBest,\n")
+                            val body =
+                                encode("Hello ${info.name},\n\nI found your resume and would like to get in touch.\n\nBest,\n")
                             uriHandler.openUri("mailto:${email.trim()}?subject=$subject&body=$body")
-                        } catch (t: Exception) { Log.w("ResumeApp", "Failed to open email URI", t) }
+                        } catch (t: Exception) {
+                            Log.w("ResumeApp", "Failed to open email URI", t)
+                        }
                     }
                     .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Email, contentDescription = "email", tint = MaterialTheme.colors.primary)
+                    Icon(
+                        Icons.Default.Email,
+                        contentDescription = "email",
+                        tint = MaterialTheme.colors.primary
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(text = email, color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
+                    Text(
+                        text = email,
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
                 }
             }
 
@@ -286,86 +343,84 @@ fun ContactRow(info: PersonalInfo) {
                 val telTarget = normalizePhone(phone)
                 Row(modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { try { if (telTarget.isNotBlank()) uriHandler.openUri("tel:$telTarget") } catch (t: Exception) { Log.w("ResumeApp", "Failed to open phone URI", t) } }
+                    .clickable {
+                        try {
+                            if (telTarget.isNotBlank()) uriHandler.openUri("tel:$telTarget")
+                        } catch (t: Exception) {
+                            Log.w("ResumeApp", "Failed to open phone URI", t)
+                        }
+                    }
                     .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Phone, contentDescription = "phone")
                     Spacer(Modifier.width(8.dp))
-                    Text(text = formatPhoneDisplay(phone), color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
+                    Text(
+                        text = formatPhoneDisplay(phone),
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
                 }
             }
 
             info.github?.takeIf { it.trim().isNotBlank() }?.let { github ->
-                Row(modifier = Modifier.fillMaxWidth().clickable { try { uriHandler.openUri(normalizeUrl(github)) } catch (t: Exception) { Log.w("ResumeApp", "Failed to open github URI", t) } }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Code, contentDescription = "github", tint = MaterialTheme.colors.primary)
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        try {
+                            uriHandler.openUri(normalizeUrl(github))
+                        } catch (t: Exception) {
+                            Log.w("ResumeApp", "Failed to open github URI", t)
+                        }
+                    }
+                    .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Code,
+                        contentDescription = "github",
+                        tint = MaterialTheme.colors.primary
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(text = github, color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
+                    Text(
+                        text = github,
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
                 }
             }
 
             info.linkedin?.takeIf { it.trim().isNotBlank() }?.let { linkedin ->
-                Row(modifier = Modifier.fillMaxWidth().clickable { try { uriHandler.openUri(normalizeUrl(linkedin)) } catch (t: Exception) { Log.w("ResumeApp", "Failed to open linkedin URI", t) } }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Business, contentDescription = "linkedin", tint = MaterialTheme.colors.primary)
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        try {
+                            uriHandler.openUri(normalizeUrl(linkedin))
+                        } catch (t: Exception) {
+                            Log.w("ResumeApp", "Failed to open linkedin URI", t)
+                        }
+                    }
+                    .padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Business,
+                        contentDescription = "linkedin",
+                        tint = MaterialTheme.colors.primary
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(text = linkedin, color = MaterialTheme.colors.primary, style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline))
+                    Text(
+                        text = linkedin,
+                        color = MaterialTheme.colors.primary,
+                        style = MaterialTheme.typography.body2.copy(textDecoration = TextDecoration.Underline)
+                    )
                 }
             }
         }
     }
 }
 
-@Composable
-fun ProjectCard(project: Project) {
-    Card(elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(project.name, fontWeight = FontWeight.Bold)
-            project.description?.let { Text(it) }
-            if (project.technologies.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Text("Technologies: ${project.technologies.joinToString(", ")}")
-            }
-        }
-    }
-}
+// NOTE: The following UI components were intentionally moved to their own files to keep this file focused on the
+// main resume screen and reduce file length. See:
+// - app/src/main/java/com/example/resume/InfoCard.kt  (the generic InfoCard composable)
+// - app/src/main/java/com/example/resume/Cards.kt     (ProjectCard, ExperienceCard, EducationCard, SkillChip and previews)
 
-@Composable
-fun ExperienceCard(exp: ExperienceEntry) {
-    Card(elevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text("${exp.title} — ${exp.company}", fontWeight = FontWeight.Bold)
-            Row { Text(exp.startDate ?: ""); Spacer(Modifier.width(8.dp)); Text(exp.endDate ?: "") }
-            exp.location?.let { Text(it) }
-            if (exp.description.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Column { exp.description.forEach { d -> Text("• $d") } }
-            }
-        }
-    }
-}
-
-@Composable
-fun EducationCard(edu: EducationEntry) {
-    Card(elevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text("${edu.degree} — ${edu.university}", fontWeight = FontWeight.Bold)
-            Row { Text(edu.startDate ?: ""); Spacer(Modifier.width(8.dp)); Text(edu.endDate ?: "") }
-            edu.gpa?.let { Text("GPA: $it") }
-            edu.location?.let { Text(it) }
-        }
-    }
-}
-
-@Composable
-fun SkillChip(skill: Skill) {
-    Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFEEEEEE), modifier = Modifier.padding(4.dp)) {
-        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(skill.name)
-            if (!skill.level.isNullOrBlank()) {
-                Spacer(Modifier.width(8.dp))
-                Text("(${skill.level})", style = MaterialTheme.typography.caption)
-            }
-        }
-    }
-}
+// Project/Experience/Education/Skill card composables were moved to `Cards.kt`.
+// See: app/src/main/java/com/example/resume/Cards.kt
 
 fun displayGithubLabel(raw: String): String {
     val t = raw.trim()
@@ -408,7 +463,11 @@ fun ResumeScreenPreview() {
             startDate = "2022-06-01",
             endDate = "Present",
             location = "City, State",
-            description = listOf("Led development of core features.", "Mentored junior developers.")
+            description = listOf(
+                "Led development of core features.",
+                "Mentored junior developers."
+            ),
+            more = listOf("Introduced CI pipeline", "Improved app startup time")
         )
     )
 
@@ -453,51 +512,8 @@ fun ResumeScreenPreview() {
     )
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ProjectCardPreview() {
-    val p = Project(
-        name = "Recipe Finder App",
-        description = "Search, save and share recipes.",
-        githubUrl = "github.com/janedoe/recipe-finder",
-        technologies = listOf("Kotlin", "Compose")
-    )
-    ProjectCard(p)
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ExperienceCardPreview() {
-    val e = ExperienceEntry(
-        company = "App Innovators Inc.",
-        title = "Senior Android Developer",
-        startDate = "2022-06-01",
-        endDate = "Present",
-        location = "City, State",
-        description = listOf("Led development.")
-    )
-    ExperienceCard(e)
-}
-
-@Preview(showBackground = true)
-@Composable
-fun EducationCardPreview() {
-    val ed = EducationEntry(
-        university = "University of Technology",
-        degree = "MSc Computer Science",
-        startDate = "2018-09-01",
-        endDate = "2020-05-31",
-        gpa = "3.9/4.0",
-        location = "City, State"
-    )
-    EducationCard(ed)
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SkillChipPreview() {
-    SkillChip(Skill(name = "Kotlin", level = "programming_languages"))
-}
+// Previews for the card components live in `Cards.kt` to keep this file focused.
+// See: app/src/main/java/com/example/resume/Cards.kt
 
 @Preview(showBackground = true)
 @Composable
@@ -540,7 +556,8 @@ fun ResumeAppPreview() {
             startDate = "2022-06-01",
             endDate = "Present",
             location = "City, State",
-            description = listOf("Led development of core features.")
+            description = listOf("Led development of core features."),
+            more = listOf("Spearheaded migration to Compose", "Improved test coverage")
         )
     )
 
@@ -583,7 +600,9 @@ fun ResumeAppPreview() {
                 isLoading = false,
                 error = null,
                 onRefresh = {},
-                modifier = Modifier.padding(innerPadding).fillMaxSize()
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
             )
         }
     }

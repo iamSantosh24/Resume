@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Google Services plugin (enables reading google-services.json and Firebase setup)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -38,6 +40,11 @@ android {
         buildConfigField("String", "FIREBASE_API_KEY", "\"$fbApiKey\"")
         buildConfigField("String", "FIREBASE_DATABASE_URL", "\"$fbDatabaseUrl\"")
         buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$fbProjectId\"")
+
+        // New flag to let builds prefer Firebase as the primary data source.
+        // Default is false (use network first). Debug build will override to true.
+        val preferFbProp: String = (project.findProperty("PREFER_FIREBASE") as String?) ?: "false"
+        buildConfigField("boolean", "PREFER_FIREBASE", preferFbProp)
     }
 
     buildTypes {
@@ -49,6 +56,9 @@ android {
             val devHostRaw: String = (project.findProperty("DEV_HOST") as String?) ?: "http://10.0.2.2:4000"
             val devHost = if (devHostRaw.endsWith("/")) devHostRaw else "$devHostRaw/"
             buildConfigField("String", "BASE_URL", "\"$devHost\"")
+
+            // For debugging, prefer Firebase (if initialized) instead of the local server.
+            buildConfigField("boolean", "PREFER_FIREBASE", "true")
         }
 
         // Staging buildType: useful to test against a staging server.
@@ -71,6 +81,9 @@ android {
             val prodUrlRelease: String = (project.findProperty("PROD_BASE_URL") as String?)
                 ?: "https://api.yourdomain.com/"
             buildConfigField("String", "BASE_URL", "\"$prodUrlRelease\"")
+
+            // Ensure release does not prefer Firebase unless explicitly set in gradle.properties.
+            buildConfigField("boolean", "PREFER_FIREBASE", "false")
         }
     }
     compileOptions {

@@ -29,7 +29,8 @@ data class ExperienceEntry(
     val startDate: String? = null,
     val endDate: String? = null,
     val location: String? = null,
-    val description: List<String> = emptyList()
+    val description: List<String> = emptyList(),
+    val more: List<String> = emptyList()
 )
 
 data class EducationEntry(
